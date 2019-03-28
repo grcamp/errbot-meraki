@@ -27,6 +27,7 @@
 
 import requests
 import logging
+from operator import itemgetter
 
 # Define global variables
 logger = logging.getLogger(__name__)
@@ -112,6 +113,46 @@ class Organization:
         # Return my_org
         return my_org
 
+    def get_top_talkers(self, timespan):
+        # Return wan_devices
+        my_org = {'name': self.name,
+                  'id': self.id,
+                  'networks': []}
+
+        # Obtain data for each network
+        for network in self.networks:
+            wan_devices = network.get_top_talkers(timespan)
+
+            # Check if wan_devices found
+            if len(wan_devices) > 0:
+                new_devices = []
+
+                found_client = False
+
+                # Append device dictionaries
+                for device in wan_devices:
+                    # If clients exist, add the device to the list
+                    if len(device.clients) > 0:
+                        new_device = {'name': device.name,
+                                      'serial': device.serial,
+                                      'clients': device.clients
+                                      }
+                        new_devices.append(new_device)
+
+                        found_client = True
+
+                if found_client:
+                    # Create new network and add
+                    new_network = {'name': network.name,
+                                   'id': network.id,
+                                   'devices': new_devices
+                                   }
+
+                    my_org['networks'].append(new_network)
+
+        # Return my_org
+        return my_org
+
 #########################################################################
 # Class Network
 #
@@ -156,6 +197,19 @@ class Network:
         # Return wan_devices
         return wan_devices
 
+    def get_top_talkers(self, timespan):
+        # Set return value
+        wan_devices = []
+
+        # Obtain uplink data if an MX exists
+        for device in self.devices:
+            if device.model.startswith('MX'):
+                if (device.get_top_talkers(timespan)):
+                    wan_devices.append(device)
+
+        # Return wan_devices
+        return wan_devices
+
 
 #########################################################################
 # Class Device
@@ -169,7 +223,7 @@ class Device:
         self.model = model
         self.network = network
         self.perf_data = {}
-        self.perf_data_str = {}
+        self.clients = []
 
 
     def get_uplink_loss_and_latency(self, ip, timespan, uplink):
@@ -236,6 +290,35 @@ class Device:
         return True
 
 
+    def get_top_talkers(self, timespan):
+        # Log step
+        info("Obtaining Client List for Device {} with Serial {}".format(self.name, self.serial))
+        # Discover devices
+        response = requests.get("{}/devices/{}/clients?timespan={}".format(baseurl, self.serial, str(timespan)),
+                                headers=self.network.organization.headers)
+        samples = response.json()
+
+        # Loop through samples to build clients
+        for sample in samples:
+            # Create new client
+            new_client = {'description': str(sample.get('description')),
+                          'sent_mbytes': round(sample.get('usage').get('sent') / float(1000), 1),
+                          'recv_mbytes': round(sample.get('usage').get('recv') / float(1000), 1),
+                          'total_mbytes': round((sample.get('usage').get('sent') + sample.get('usage').get('recv')) / float(1000), 1),
+                          'ip': str(sample.get('ip')),
+                          'mac': str(sample.get('mac'))
+                          }
+
+            # Append client
+            self.clients.append(new_client)
+
+        # Sort clients
+        self.clients.sort(key=itemgetter('total_mbytes'), reverse=True)
+
+        # Return True
+        return True
+
+
 class Meraki_Dashboard_Client:
     def __init__(self, api_key):
         '''
@@ -288,7 +371,17 @@ class Meraki_Dashboard_Client:
         org_data = []
         # For each org in list, obtain device list
         for org in self.organizations:
-            org_data.append(org.get_uplink_loss_and_latency("8.8.8.8", 86400, "wan1"))
+            org_data.append(org.get_uplink_loss_and_latency('8.8.8.8', 86400, 'wan1'))
 
-        # Return True
+        # Return org_data
+        return org_data
+
+    def get_top_talkers(self):
+        # Set list of devices
+        org_data = []
+        # For each org in list, obtain device list
+        for org in self.organizations:
+            org_data.append(org.get_top_talkers(86400))
+
+        # Return org_data
         return org_data
