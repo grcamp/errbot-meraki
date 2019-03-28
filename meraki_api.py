@@ -83,8 +83,8 @@ class Organization:
 
     def get_uplink_loss_and_latency(self, ip, timespan, uplink):
         # Return wan_devices
-        my_org = {'org_name': self.name,
-                  'org_id': self.id,
+        my_org = {'name': self.name,
+                  'id': self.id,
                   'networks': []}
 
         # Obtain data for each network
@@ -97,14 +97,14 @@ class Organization:
 
                 # Append device dictionaries
                 for device in wan_devices:
-                    new_device = {'device_name': device.name,
-                                  'device_serial': device.serial,
+                    new_device = {'name': device.name,
+                                  'serial': device.serial,
                                   'perf_data': device.perf_data
                                   }
                     new_devices.append(new_device)
 
-                new_network = {'network_name': network.name,
-                               'network_id': network.id,
+                new_network = {'name': network.name,
+                               'id': network.id,
                                'devices': new_devices
                                }
                 my_org['networks'].append(new_network)
