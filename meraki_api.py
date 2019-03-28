@@ -30,7 +30,7 @@ import logging
 
 # Define global variables
 logger = logging.getLogger(__name__)
-baseurl = 'https://dashboard.meraki.com/api/v0'
+baseurl = 'https://api.meraki.com/api/v0'
 headers = ""
 
 def info(msg):
