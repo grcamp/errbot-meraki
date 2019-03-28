@@ -244,12 +244,23 @@ class Meraki_Dashboard_Client:
         self.headers = {'X-Cisco-Meraki-API-Key': api_key,'Content-Type': 'application/json'}
         self.organizations = []
 
+    def login(self):
+        # Set return value
+        return_val = False
+
         # Log step
         info("Obtaining List of Organizations Associated to Meraki Dashboard with API Key")
 
-        result = requests.get("{}/organizations".format(baseurl), headers=self.headers)
-        orgs = result.json()
-        self._discover_networks(orgs)
+        try:
+            result = requests.get("{}/organizations".format(baseurl), headers=self.headers)
+            orgs = result.json()
+            self._discover_networks(orgs)
+            return_val = True
+        except:
+            return_val = False
+
+        # Return return_val
+        return return_val
 
 
     def _discover_networks(self, orgs):
