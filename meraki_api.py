@@ -169,6 +169,7 @@ class Device:
         self.model = model
         self.network = network
         self.perf_data = {}
+        self.perf_data_str = {}
 
 
     def get_uplink_loss_and_latency(self, ip, timespan, uplink):
@@ -228,8 +229,8 @@ class Device:
             self.perf_data['samples'].append(sample)
 
         # Compute averages
-        self.perf_data['avg_latency'] = float(total_latency) / float(len(samples))
-        self.perf_data['avg_loss_percent'] = float(total_loss_percent) / float(len(samples))
+        self.perf_data['avg_latency'] = round(float(total_latency) / float(len(samples)), 1)
+        self.perf_data['avg_loss_percent'] = round(float(total_loss_percent) / float(len(samples)), 1)
 
         # Return None
         return True
