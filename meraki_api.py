@@ -113,7 +113,7 @@ class Organization:
         # Return my_org
         return my_org
 
-    def get_top_talkers(self, timespan):
+    def get_top_talkers(self, timespan, count=0):
         # Return wan_devices
         my_org = {'name': self.name,
                   'id': self.id,
@@ -137,6 +137,10 @@ class Organization:
                                       'serial': device.serial,
                                       'clients': device.clients
                                       }
+                        # Trim client count
+                        if count > 0:
+                            new_device['clients'] = new_device['clients'][:count]
+
                         new_devices.append(new_device)
 
                         found_client = True
@@ -376,12 +380,12 @@ class Meraki_Dashboard_Client:
         # Return org_data
         return org_data
 
-    def get_top_talkers(self):
+    def get_top_talkers(self, timespan=86400, count=0):
         # Set list of devices
         org_data = []
         # For each org in list, obtain device list
         for org in self.organizations:
-            org_data.append(org.get_top_talkers(86400))
+            org_data.append(org.get_top_talkers(timespan, count))
 
         # Return org_data
-        return org_data
+        return org_data[:count]
