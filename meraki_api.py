@@ -388,4 +388,4 @@ class Meraki_Dashboard_Client:
             org_data.append(org.get_top_talkers(timespan, count))
 
         # Return org_data
-        return org_data[:count]
+        return org_data
