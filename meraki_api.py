@@ -9,25 +9,19 @@
 # Usage:
 #   ./meraki_api.py
 #
-# Example config.json:
-# {
-#     "email": {
-#         "smtp": "outbound.cisco.com",
-#         "from": "grcamp@cisco.com",
-#         "to": "someone@somewhere.com,someoneelse@somewhere.com",
-#         "cc": "someone@someplace.com,someoneelse@someplace.com"
-#     }
-# }
 #
 #
 # Global Variables:
 #    logger = Used for Debug output and script info
+#    baseurl = URL of Meraki Cloud
+#    headers = API header value used for authentication
 #
 #########################################################################
 
 import requests
 import logging
 from operator import itemgetter
+import matplotlib.pyplot as plt
 
 # Define global variables
 logger = logging.getLogger(__name__)
@@ -54,7 +48,7 @@ def fatal(msg):
 #########################################################################
 # Class Organization
 #
-# Container for networks
+# Container for organization data
 #########################################################################
 class Organization:
     def __init__(self, id, name, headers):
@@ -157,6 +151,18 @@ class Organization:
         # Return my_org
         return my_org
 
+    def graph_uplink_loss_and_latency(self, device_name, ip, timespan, uplink):
+        # Return wan_devices
+        graphs = []
+
+        # Obtain data for each network
+        for network in self.networks:
+            graphs += network.graph_uplink_loss_and_latency(device_name, ip, timespan, uplink)
+
+        # Return images
+        return graphs
+
+
 #########################################################################
 # Class Network
 #
@@ -214,6 +220,17 @@ class Network:
         # Return wan_devices
         return wan_devices
 
+    def graph_uplink_loss_and_latency(self, device_name, ip, timespan, uplink):
+        # Set return value
+        graphs = []
+
+        # Obtain uplink data if an MX exists
+        for device in self.devices:
+            if device.model.startswith('MX') and device_name.lower() == device.name.lower():
+                graphs.append(device.graph_uplink_loss_and_latency(ip, timespan, uplink))
+
+        # Return graphs
+        return graphs
 
 #########################################################################
 # Class Device
@@ -228,7 +245,6 @@ class Device:
         self.network = network
         self.perf_data = {}
         self.clients = []
-
 
     def get_uplink_loss_and_latency(self, ip, timespan, uplink):
         '''
@@ -290,7 +306,7 @@ class Device:
         self.perf_data['avg_latency'] = round(float(total_latency) / float(len(samples)), 1)
         self.perf_data['avg_loss_percent'] = round(float(total_loss_percent) / float(len(samples)), 1)
 
-        # Return None
+        # Return True
         return True
 
 
@@ -322,7 +338,54 @@ class Device:
         # Return True
         return True
 
+    def graph_uplink_loss_and_latency(self, ip, timespan, uplink):
+        '''
+        :return:
+        '''
+        # List of graphs
+        graphs = []
+        # Log step
+        info("Obtaining Uplink Loss Percentage for Device {} with Serial {}".format(self.name, self.serial))
+        # Discover devices
+        response = requests.get(
+            "{}/networks/{}/devices/{}/lossAndLatencyHistory?ip={}&timespan={}&uplink={}".format(baseurl,
+                                                                                                 self.network.id,
+                                                                                                 self.serial,
+                                                                                                 ip,
+                                                                                                 str(timespan),
+                                                                                                 uplink),
+                                headers=self.network.organization.headers)
+        samples = response.json()
 
+        # If no samples are found, exit
+        if len(samples) == 0:
+            # Return None
+            return graphs
+
+        # Set first time of 1
+        time = 1
+        times = []
+        latency_values = []
+
+        # Build loop through list for calculations
+        for sample in samples:
+            # Check for max loss
+            sample['time'] = time
+            times.append(time)
+            latency_values.append(sample.get('latencyMs'))
+            time += 1
+
+        plt.plot(times, latency_values)
+        plt.savefig("{}_latency.png".format(self.name))
+
+        # Return True
+        return True
+
+#########################################################################
+# Class Meraki_Dashboard_Client
+#
+# Class used to operate client and return data for use in errbot
+#########################################################################
 class Meraki_Dashboard_Client:
     def __init__(self, api_key):
         '''
@@ -389,3 +452,12 @@ class Meraki_Dashboard_Client:
 
         # Return org_data
         return org_data
+
+    def graph_uplink_loss_and_latency(self, device_name=""):
+        # Declare variables
+        graphs = []
+        # Check each network
+        for org in self.organizations:
+            graphs += org.graph_uplink_loss_and_latency(device_name, '8.8.8.8', 86400, 'wan1')
+
+        return graphs
