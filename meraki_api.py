@@ -57,7 +57,7 @@ class Organization:
         self.headers = headers
         self.networks = []
 
-    def get_networks(self):
+    def get_inventory(self):
         '''
         :return:
         '''
@@ -72,6 +72,18 @@ class Organization:
             new_network = Network(str(network.get('id')), str(network.get('name')), str(network.get('type')),
                                   self)
             self.networks.append(new_network)
+
+        # Log step
+        info("Obtaining List of Devices for Organization {} with ID {}".format(self.name, self.id))
+        # Discover inventory
+        response = requests.get("{}/organizations/{}/inventory".format(baseurl, self.id), headers=self.headers)
+        devices = response.json()
+
+        # Obtain devices for each network
+        for device in devices:
+            for network in self.networks:
+                if device.get('networkId') == network.id:
+                    network.add_device(device)
 
         # Return None
         return None
@@ -176,20 +188,13 @@ class Network:
         self.organization = organization
         self.devices = []
 
-    def get_devices(self):
+    def add_device(self, device):
         '''
         :return:
         '''
-        # Log step
-        info("Obtaining List of Devices for Network {} with ID {}".format(self.name, self.id))
-        # Discover devices
-        response = requests.get("{}/networks/{}/devices".format(baseurl, self.id), headers=self.organization.headers)
-        devices = response.json()
-
-        # Build device list
-        for device in devices:
-            new_device = Device(str(device.get('serial')), str(device.get('name')), str(device.get('model')), self)
-            self.devices.append(new_device)
+        # Build device
+        new_device = Device(str(device.get('serial')), str(device.get('name')), str(device.get('model')), self)
+        self.devices.append(new_device)
 
         # Return None
         return None
@@ -405,7 +410,7 @@ class Meraki_Dashboard_Client:
         try:
             result = requests.get("{}/organizations".format(baseurl), headers=self.headers)
             orgs = result.json()
-            self._discover_networks(orgs)
+            self._get_inventory(orgs)
             return_val = True
         except:
             return_val = False
@@ -414,24 +419,15 @@ class Meraki_Dashboard_Client:
         return return_val
 
 
-    def _discover_networks(self, orgs):
+    def _get_inventory(self, orgs):
         # For each org in list, build an org data structure
         for org in orgs:
             new_org = Organization(str(org.get('id')), org.get('name'), self.headers)
             self.organizations.append(new_org)
-            new_org.get_networks()
+            new_org.get_inventory()
 
         # Return None
         return None
-
-    def discover_devices(self):
-        # For each org in list, obtain device list
-        for org in self.organizations:
-            for network in org.networks:
-                network.get_devices()
-
-        # Return True
-        return True
 
     def get_uplink_loss_and_latency(self):
         # Set list of devices
