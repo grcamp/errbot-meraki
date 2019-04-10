@@ -411,6 +411,7 @@ class Device:
 
         file_name = "{}_{}_graphs.png".format(date, self.name)
         plt.savefig(file_name)
+        plt.clf()
         graphs.append(file_name)
 
         # Return True
