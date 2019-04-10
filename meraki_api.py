@@ -374,20 +374,42 @@ class Device:
             return graphs
 
         # Set first time of 1
-        time = 1
+        time = 0
+        i = 0
+        avg_latency = float(0)
+        avg_loss = float(0)
         times = []
         latency_values = []
+        loss_values = []
 
         # Build loop through list for calculations
         for sample in samples:
-            # Check for max loss
-            sample['time'] = time
-            times.append(time)
-            latency_values.append(sample.get('latencyMs'))
-            time += 1
+            # Check if less than 15
+            if i < 15:
+                avg_latency += sample.get('latencyMs')
+                avg_loss += sample.get('lossPercent')
+                i += 1
+            else:
+                # Check for max loss
+                times.append(time)
+                latency_values.append(float(avg_latency / float(15)))
+                loss_values.append(float(avg_loss / float(15)))
+                avg_latency = sample.get('latencyMs')
+                avg_loss = sample.get('lossPercent')
+                time += 15
+                i = 0
 
-        plt.plot(times, latency_values)
-        file_name = "{}_{}_latency.png".format(date, self.name)
+        plt.subplot(2, 1, 1)
+        plt.plot(times, latency_values, '.-')
+        plt.title("Latency and Loss for {}".format(self.name))
+        plt.ylabel('Latency (ms)')
+
+        plt.subplot(2, 1, 2)
+        plt.plot(times, loss_values, 'r.-')
+        plt.xlabel('time (s)')
+        plt.ylabel('Loss (%)')
+
+        file_name = "{}_{}_graphs.png".format(date, self.name)
         plt.savefig(file_name)
         graphs.append(file_name)
 
