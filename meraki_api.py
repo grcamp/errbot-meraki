@@ -20,6 +20,7 @@
 
 import requests
 import logging
+import datetime
 from operator import itemgetter
 import matplotlib.pyplot as plt
 
@@ -164,12 +165,17 @@ class Organization:
         return my_org
 
     def graph_uplink_loss_and_latency(self, device_name, ip, timespan, uplink):
+        # Find current time string
+        current_time = datetime.datetime.now()
+        date_string = "{}-{}-{}_{}{}{}".format(str(current_time.year).zfill(4), str(current_time.month).zfill(2),
+                                               str(current_time.day).zfill(2), str(current_time.hour).zfill(2),
+                                               str(current_time.minute).zfill(2), str(current_time.second).zfill(2))
         # Return wan_devices
         graphs = []
 
         # Obtain data for each network
         for network in self.networks:
-            graphs += network.graph_uplink_loss_and_latency(device_name, ip, timespan, uplink)
+            graphs += network.graph_uplink_loss_and_latency(device_name, date_string, ip, timespan, uplink)
 
         # Return images
         return graphs
@@ -225,14 +231,14 @@ class Network:
         # Return wan_devices
         return wan_devices
 
-    def graph_uplink_loss_and_latency(self, device_name, ip, timespan, uplink):
+    def graph_uplink_loss_and_latency(self, device_name, date, ip, timespan, uplink):
         # Set return value
         graphs = []
 
         # Obtain uplink data if an MX exists
         for device in self.devices:
             if device.model.startswith('MX') and device_name.lower() == device.name.lower():
-                graphs.append(device.graph_uplink_loss_and_latency(ip, timespan, uplink))
+                graphs += device.graph_uplink_loss_and_latency(date, ip, timespan, uplink)
 
         # Return graphs
         return graphs
@@ -343,7 +349,7 @@ class Device:
         # Return True
         return True
 
-    def graph_uplink_loss_and_latency(self, ip, timespan, uplink):
+    def graph_uplink_loss_and_latency(self, date, ip, timespan, uplink):
         '''
         :return:
         '''
@@ -381,10 +387,12 @@ class Device:
             time += 1
 
         plt.plot(times, latency_values)
-        plt.savefig("{}_latency.png".format(self.name))
+        file_name = "{}_{}_latency.png".format(date, self.name)
+        plt.savefig(file_name)
+        graphs.append(file_name)
 
         # Return True
-        return True
+        return graphs
 
 #########################################################################
 # Class Meraki_Dashboard_Client
